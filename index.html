@@ -114,7 +114,8 @@
             <h2>one line to embed</h2>
             <pre id="snippet">&lt;script src="https://presence.example/presence.js"
   data-user="scorn"&gt;&lt;/script&gt;</pre>
-            <button id="copy" class="copy" type="button">copy snippet</button>
+            <button id="copy" class="copy" type="button" aria-describedby="copy-status">copy snippet</button>
+            <span id="copy-status" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"></span>
           </div>
           <div id="docs" class="notes">
             <h2>made for hand-built places</h2>
@@ -132,6 +133,7 @@
     const status = document.querySelector('#status');
     const card = document.querySelector('#presence-card');
     const copy = document.querySelector('#copy');
+    const copyStatus = document.querySelector('#copy-status');
     function updatePresence(value) {
       const clean = value.trim().replace(/^['"]|['"]$/g, '').trim();
       if (!clean) return;
@@ -147,7 +149,35 @@
       else if (/^presence\s+clear$/i.test(command.value)) { status.textContent = 'quiet for now'; output.innerHTML = '<div class="ok">✓ presence cleared</div><div>the widget is taking a little quiet time</div>'; }
       else output.innerHTML = '<div>usage: presence set "what you are doing"</div>';
     });
-    copy.addEventListener('click', async () => { await navigator.clipboard.writeText(document.querySelector('#snippet').textContent); copy.textContent = 'copied'; setTimeout(() => copy.textContent = 'copy snippet', 1600); });
+    async function copyText(value) {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+
+      const field = document.createElement('textarea');
+      field.value = value;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      const copied = document.execCommand('copy');
+      field.remove();
+      if (!copied) throw new Error('Copy command was rejected');
+    }
+
+    copy.addEventListener('click', async () => {
+      try {
+        await copyText(document.querySelector('#snippet').textContent);
+        copy.textContent = 'copied';
+        copyStatus.textContent = 'Embed snippet copied to clipboard.';
+      } catch {
+        copy.textContent = 'copy failed';
+        copyStatus.textContent = 'Could not copy automatically. Select the snippet and copy it manually.';
+      }
+      setTimeout(() => { copy.textContent = 'copy snippet'; }, 1600);
+    });
   </script>
 </body>
 </html>
